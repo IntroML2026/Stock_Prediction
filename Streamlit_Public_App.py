@@ -33,66 +33,59 @@ s3_client = session.client('s3')
 
 bucket_name = r"my-test-bucket-for-boto3-check-12345"
 
-# Model Mapping in Python
-MODEL_ENDPOINTS = {
-    "MSFT Stock Predictor": {
-        "endpoint": "linear-learner-2025-12-05-04-32-57-036",
-        "inputs": ["temp", "price_index"] # For dynamic form generation
-    },
-    "Bitcoin Signal Predictor": {
-        "endpoint": "linear-learner-2025-12-05-04-32-57-036",
-        "inputs": ["transaction_amount", "time_of_day"]
-    }
-}
-
 sagemaker_session = sagemaker.Session(boto_session=session)
 
+import sys
+
+# Build the path to the 'src' directory (relative to the notebook's location)
+module_path = os.path.abspath('..') 
+
+# Add the 'src' directory to the system path list
+if module_path not in sys.path:
+    sys.path.append(module_path)
+
+from src.feature_utils import get_bitcoin_historical_prices 
+from src.feature_utils import extract_features 
+
+df_prices = get_bitcoin_historical_prices()
+df_features = extract_features()
+
+MIN_VAL = 0.5*df_prices.min()[0]
+MAX_VAL = 2*df_prices.max()[0]
+STEP_VAL = 100
+DEFAULT_VAL = df_prices.mean()[0]
 
 # --- Configuration: Model Registry ---
 # In a real app, this would be loaded from a config file or database.
 # The 'inputs' list defines the features required by each model.
 MODEL_ENDPOINTS = {
     "MSFT Stock Predictor": {
-        "endpoint": "linear-learner-2025-12-05-04-32-57-036",
+        "endpoint": "lasso-pipeline-endpoint-auto",
         "inputs": [
-            {"name": "MSFT_WT", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
             {"name": "GOOGL", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
-            {"name": "SP500", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
-            {"name": "MSFT_3WT", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
-            {"name": "DJIA", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
-            {"name": "MSFT_6WT", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
+            {"name": "IBM", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
             {"name": "DEXJPUS", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
-            {"name": "MSFT_12WT", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
-            {"name": "VIXCLS", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
             {"name": "DEXUSUK", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
-            {"name": "IBM", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0}
+            {"name": "SP500", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
+            {"name": "DJIA", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
+            {"name": "VIXCLS", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0}
         ] 										
     },
     "Bitcoin Signal Predictor": {
-        "endpoint": "linear-learner-2025-12-05-04-32-57-036",
+        "endpoint": "logistic-pipeline-endpoint-auto-1",
         "inputs": [
-            {"name": "MSFT_WT", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
-            {"name": "GOOGL", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
-            {"name": "SP500", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
-            {"name": "MSFT_3WT", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
-            {"name": "DJIA", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
-            {"name": "MSFT_6WT", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
-            {"name": "DEXJPUS", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
-            {"name": "MSFT_12WT", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
-            {"name": "VIXCLS", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
-            {"name": "DEXUSUK", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
-            {"name": "IBM", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0}
+            {"name": "Close Price", "type": "number", "min": MIN_VAL, "max": MAX_VAL, "default": DEFAULT_VAL}
         ]
     }
 }
 
-FEATURE_KEYS = [ "GOOGL", "DEXJPUS", "DEXUSUK", "SP500", "DJIA", "VIXCLS", "MSFT_WT", "MSFT_3WT","MSFT_6WT", "MSFT_12WT", "IBM"]
+FEATURE_KEYS = [ "GOOGL", "IBM", "DEXJPUS", "DEXUSUK", "SP500", "DJIA", "VIXCLS"]
 
 # --- Backend Logic (Placeholder for AWS API Call) ---
 @st.cache_resource
 def call_model_api(endpoint_url, feature_values):
 
-    linear_predictor = Predictor(
+    predictor = Predictor(
         endpoint_name=endpoint_url,
         sagemaker_session=sagemaker_session,
         serializer=CSVSerializer(),
@@ -104,19 +97,25 @@ def call_model_api(endpoint_url, feature_values):
     
     # Extract values in the predefined order
     try:
-        data_row = [feature_values[key] for key in FEATURE_KEYS]
-        input_array = np.array(data_row).reshape(1, -1)
+        if len(feature_values.values()) > 1:
+            data_row = [feature_values[key] for key in FEATURE_KEYS]
+            #input_array = np.array(data_row).reshape(1, -1)
+            #input_df = pd.DataFrame(input_array)
+            input_df = pd.concat([df_features,pd.DataFrame([data_row],columns=df_features.columns)])
+            prediction_result = predictor.predict(input_df)
+            final_prediction = pd.DataFrame(prediction_result).values[-1][0]
+            #final_prediction = prediction_result#['predictions'][0]['score']
+            return final_prediction, 200
+        else:
+            data_row = feature_values.values()
+            input_df = pd.concat([df_prices,pd.DataFrame(data_row,columns=df_prices.columns)])
+            prediction_result = predictor.predict(input_df)
+            final_prediction = pd.DataFrame(prediction_result).replace({-1:"SELL",0:"HOLD",1:"BUY"}).values[-1][0]
+            return final_prediction, 200
+        
     except KeyError as e:
         print(f"Error: Missing required feature {e}.")
         return 0.0 # Return a zero prediction on error
-
-    input_df = pd.DataFrame(input_array)
-    #csv_input_string = input_df.to_csv(header=False, index=False)
-     
-    try:
-         prediction_result = linear_predictor.predict(input_df)
-         final_prediction = prediction_result#['predictions'][0]['score'] 
-         return final_prediction, 200
     except Exception as e:
          print(f"[Tool Executor]: ERROR: SageMaker prediction failed: {e}"), 500
          return f"Prediction failed due to API error: {e}", 500
@@ -206,21 +205,13 @@ if submitted:
     # Display Results
     if status_code == 200:
         st.success("Prediction successful!")
-        
-        if "predictions" in prediction_result:
-            # Display the main result using st.metric for emphasis
-            prediction_result_tmp = prediction_result['predictions'][0]['score']
-            st.metric(
-                label=f"Predicted Value ({selected_model_name})", 
-                value=f"{prediction_result_tmp}" if isinstance(prediction_result_tmp, (int, float)) else prediction_result_tmp
-            )
 
-        # Display all returned data
-        st.subheader("API Response")
-        st.json(prediction_result)
+        st.metric(
+            label=f"Predicted Value ({selected_model_name})", 
+            value=f"{prediction_result}" if isinstance(prediction_result, (int, float)) else prediction_result
+        )
         
     else:
         st.error(f"Prediction failed with status code {status_code}. See details below.")
-        st.json(prediction_result)
 
 st.markdown("---")
