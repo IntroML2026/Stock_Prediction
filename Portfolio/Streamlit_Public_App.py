@@ -66,19 +66,19 @@ MODEL_ENDPOINTS = {
     "MSFT Stock Predictor": {
         "endpoint": "lasso-pipeline-endpoint-auto",
         "inputs": [
-            {"name": "GOOGL", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
-            {"name": "IBM", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
-            {"name": "DEXJPUS", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
-            {"name": "DEXUSUK", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
-            {"name": "SP500", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
-            {"name": "DJIA", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0},
-            {"name": "VIXCLS", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0}
+            {"name": "GOOGL", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step":0.01},
+            {"name": "IBM", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step":0.01},
+            {"name": "DEXJPUS", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step":0.01},
+            {"name": "DEXUSUK", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step":0.01},
+            {"name": "SP500", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step":0.01},
+            {"name": "DJIA", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step":0.01},
+            {"name": "VIXCLS", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step":0.01}
         ] 										
     },
     "Bitcoin Signal Predictor": {
         "endpoint": "logistic-pipeline-endpoint-auto-1",
         "inputs": [
-            {"name": "Close Price", "type": "number", "min": MIN_VAL, "max": MAX_VAL, "default": DEFAULT_VAL}
+            {"name": "Close Price", "type": "number", "min": MIN_VAL, "max": MAX_VAL, "default": DEFAULT_VAL, "step":STEP_VAL}
         ]
     }
 }
@@ -175,7 +175,7 @@ with st.form(key='prediction_form'):
                     min_value=feature['min'],
                     max_value=feature['max'],
                     value=feature['default'],
-                    step=0.01
+                    step=feature['step']
                 )
             
             elif feature['type'] == 'checkbox':
