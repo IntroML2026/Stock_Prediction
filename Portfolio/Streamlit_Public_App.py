@@ -37,12 +37,16 @@ sagemaker_session = sagemaker.Session(boto_session=session)
 
 import sys
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(current_dir, '..'))
+sys.path.append(project_root)
+
 # Build the path to the 'src' directory (relative to the notebook's location)
-module_path = os.path.abspath('..') 
+#module_path = os.path.abspath('..') 
 
 # Add the 'src' directory to the system path list
-if module_path not in sys.path:
-    sys.path.append(module_path)
+#if module_path not in sys.path:
+#    sys.path.append(module_path)
 
 from src.feature_utils import get_bitcoin_historical_prices 
 from src.feature_utils import extract_features 
