@@ -56,7 +56,7 @@ df_features = extract_features()
 
 MIN_VAL = 0.5*df_prices.min()[0]
 MAX_VAL = 2*df_prices.max()[0]
-STEP_VAL = 100
+STEP_VAL = 100.0
 DEFAULT_VAL = df_prices.mean()[0]
 
 # --- Configuration: Model Registry ---
