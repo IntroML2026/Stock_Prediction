@@ -1,0 +1,13 @@
+numpy==1.26.4
+boto3==1.40.69
+sagemaker==2.189.0
+scipy==1.15.2
+scikit-learn==1.7.2
+seaborn
+matplotlib
+jupyter-ai[all]
+openai
+yfinance
+pandas_datareader
+ipywidgets
+streamlit
