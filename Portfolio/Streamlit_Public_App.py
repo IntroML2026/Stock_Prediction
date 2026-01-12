@@ -8,8 +8,13 @@ import sagemaker
 from sagemaker.predictor import Predictor
 from sagemaker.serializers import CSVSerializer
 from sagemaker.deserializers import JSONDeserializer
+from sagemaker.serializers import NumpySerializer
+from sagemaker.deserializers import NumpyDeserializer
 
-# 1. Setup & Path Configuration
+import shap
+
+
+# Setup & Path Configuration
 warnings.simplefilter("ignore")
 
 # Fix path for Streamlit Cloud (ensure 'src' is findable)
@@ -24,21 +29,30 @@ from src.feature_utils import get_bitcoin_historical_prices, extract_features
 aws_id = st.secrets["aws_credentials"]["AWS_ACCESS_KEY_ID"]
 aws_secret = st.secrets["aws_credentials"]["AWS_SECRET_ACCESS_KEY"]
 aws_token = st.secrets["aws_credentials"]["AWS_SESSION_TOKEN"]
+aws_bucket = st.secrets["aws_credentials"]["AWS_BUCKET"]
 
-# 2. AWS Session Management
-@st.cache_resource
-def get_sagemaker_session():
-    session = boto3.Session(
+
+# AWS Session Management
+@st.cache_resource # Use this to avoid downloading the file every time the page refreshes
+session = boto3.Session(
         aws_access_key_id=aws_id,
         aws_secret_access_key=aws_secret,
         aws_session_token = aws_token,
         region_name='us-east-1'
     )
-    return sagemaker.Session(boto_session=session)
+s3_client = session.client('s3')
 
-sm_session = get_sagemaker_session()
+sm_session = sagemaker.Session(boto_session=session)
 
-# 3. Data & Model Configuration
+s3_client.download_file(
+    Filename='/tmp/explainer.shap',
+    Bucket=aws_bucket,
+    Key = "explainer/explainer.shap")
+
+with open('/tmp/explainer.shap', "rb") as f:
+    explainer = shap.Explainer.load(f)
+
+# Data & Model Configuration
 df_prices = get_bitcoin_historical_prices()
 df_features = extract_features()
 
@@ -60,26 +74,27 @@ MODEL_ENDPOINTS = {
     }
 }
 
-# 4. Prediction Logic
-def call_model_api(model_name, feature_dict):
+# Prediction Logic
+def call_model_api(input_df):
     config = MODEL_ENDPOINTS[model_name]
     
     predictor = Predictor(
         endpoint_name=config["endpoint"],
         sagemaker_session=sm_session,
-        serializer=CSVSerializer(),
-        deserializer=JSONDeserializer()
+        serializer=NumpySerializer(),
+        deserializer=NumpyDeserializer() 
     )
 
     try:
         # Create input row based on the specific keys required for this model
-        data_row = [feature_dict[k] for k in config["keys"]]
+        #data_row = [feature_dict[k] for k in config["keys"]]
         
         # Prepare data (Stock predictor uses df_features, Bitcoin uses df_prices)
-        base_df = df_features if "MSFT" in model_name else df_prices
-        input_df = pd.concat([base_df, pd.DataFrame([data_row], columns=base_df.columns)])
+        #base_df = df_features if "MSFT" in model_name else df_prices
+        #input_df = pd.concat([base_df, pd.DataFrame([data_row], columns=base_df.columns)])
         
         raw_pred = predictor.predict(input_df)
+
         pred_val = pd.DataFrame(raw_pred).values[-1][0]
 
         # Formatting for Bitcoin classification
@@ -92,7 +107,17 @@ def call_model_api(model_name, feature_dict):
     except Exception as e:
         return f"Error: {str(e)}", 500
 
-# 5. Streamlit UI
+# Local Explainability
+def display_explanation(shap_values):
+    st.subheader("🔍 Decision Transparency (SHAP)")
+    fig, ax = plt.subplots(figsize=(10, 4))
+    shap.plots.waterfall(shap_values[0], max_display=10)
+    st.pyplot(fig)
+    # top feature   
+    top_feature = shap_values[0].feature_names[0]
+    st.info(f"**Business Insight:** The most influential factor in this decision was **{top_feature}**.")
+
+# Streamlit UI
 st.set_page_config(page_title="ML Deployment Compiler", layout="wide")
 st.title("👨‍💻 ML Deployment Compiler")
 
@@ -114,8 +139,20 @@ with st.form("pred_form"):
     submitted = st.form_submit_button("Run Prediction")
 
 if submitted:
-    res, status = call_model_api(selected_model, user_inputs)
+
+
+    data_row = [user_inputs[k] for k in config["keys"]]
+    # Prepare data (Stock predictor uses df_features, Bitcoin uses df_prices)
+    base_df = df_features if "MSFT" in selected_model else df_prices
+    input_df = pd.concat([base_df, pd.DataFrame([data_row], columns=base_df.columns)])
+    
+    res, status = call_model_api(input_df)
     if status == 200:
         st.metric("Prediction Result", res)
+        shap_values = explainer(input_df)
+        display_explanation(shap_values)
     else:
         st.error(res)
+
+
+
