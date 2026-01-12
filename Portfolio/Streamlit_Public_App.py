@@ -34,23 +34,31 @@ aws_bucket = st.secrets["aws_credentials"]["AWS_BUCKET"]
 
 # AWS Session Management
 @st.cache_resource # Use this to avoid downloading the file every time the page refreshes
-session = boto3.Session(
+def get_session(aws_id, aws_secret, aws_token):
+    return boto3.Session(
         aws_access_key_id=aws_id,
         aws_secret_access_key=aws_secret,
-        aws_session_token = aws_token,
+        aws_session_token=aws_token,
         region_name='us-east-1'
     )
-s3_client = session.client('s3')
+
+# Cache the Explainer (Downloading and loading is slow)
+@st.cache_resource
+def load_shap_explainer(_session, bucket, key):
+    s3_client = _session.client('s3')
+    local_path = '/tmp/explainer.shap'
+    
+    # Only download if it doesn't exist locally to save time
+    if not os.path.exists(local_path):
+        s3_client.download_file(Filename=local_path, Bucket=bucket, Key=key)
+        
+    with open(local_path, "rb") as f:
+        return shap.Explainer.load(f)
+
+session = get_session(aws_id, aws_secret, aws_token)
+explainer = load_shap_explainer(session, aws_bucket, "explainer/explainer.shap")
 
 sm_session = sagemaker.Session(boto_session=session)
-
-s3_client.download_file(
-    Filename='/tmp/explainer.shap',
-    Bucket=aws_bucket,
-    Key = "explainer/explainer.shap")
-
-with open('/tmp/explainer.shap', "rb") as f:
-    explainer = shap.Explainer.load(f)
 
 # Data & Model Configuration
 df_prices = get_bitcoin_historical_prices()
