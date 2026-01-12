@@ -2,6 +2,7 @@ import os, sys, warnings
 import numpy as np
 import pandas as pd
 import streamlit as st
+import matplotlib.pyplot as plt
 
 import boto3
 import sagemaker
@@ -94,13 +95,7 @@ def call_model_api(input_df, model_name):
     )
 
     try:
-        # Create input row based on the specific keys required for this model
-        #data_row = [feature_dict[k] for k in config["keys"]]
-        
-        # Prepare data (Stock predictor uses df_features, Bitcoin uses df_prices)
-        #base_df = df_features if "MSFT" in model_name else df_prices
-        #input_df = pd.concat([base_df, pd.DataFrame([data_row], columns=base_df.columns)])
-        
+
         raw_pred = predictor.predict(input_df)
 
         pred_val = pd.DataFrame(raw_pred).values[-1][0]
