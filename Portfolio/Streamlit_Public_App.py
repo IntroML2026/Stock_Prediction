@@ -3,6 +3,11 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
+import posixpath
+
+import joblib
+import tarfile
+import tempfile
 
 import boto3
 import sagemaker
@@ -11,6 +16,8 @@ from sagemaker.serializers import CSVSerializer
 from sagemaker.deserializers import JSONDeserializer
 from sagemaker.serializers import NumpySerializer
 from sagemaker.deserializers import NumpyDeserializer
+
+from imblearn.pipeline import Pipeline
 
 import shap
 
@@ -43,21 +50,8 @@ def get_session(aws_id, aws_secret, aws_token):
         region_name='us-east-1'
     )
 
-# Cache the Explainer (Downloading and loading is slow)
-@st.cache_resource
-def load_shap_explainer(_session, bucket, key):
-    s3_client = _session.client('s3')
-    local_path = '/tmp/explainer.shap'
-    
-    # Only download if it doesn't exist locally to save time
-    if not os.path.exists(local_path):
-        s3_client.download_file(Filename=local_path, Bucket=bucket, Key=key)
-        
-    with open(local_path, "rb") as f:
-        return shap.Explainer.load(f)
 
 session = get_session(aws_id, aws_secret, aws_token)
-explainer = load_shap_explainer(session, aws_bucket, "explainer/explainer.shap")
 
 sm_session = sagemaker.Session(boto_session=session)
 
@@ -73,15 +67,46 @@ DEFAULT_VAL = df_prices.iloc[:, 0].mean()
 MODEL_ENDPOINTS = {
     "MSFT Stock Predictor": {
         "endpoint": "lasso-pipeline-endpoint-auto-15",
+        "explainer": 'explainer.shap',
+        "pipeline": 'finalized_model.tar.gz',
         "keys": ["GOOGL", "IBM", "DEXJPUS", "DEXUSUK", "SP500", "DJIA", "VIXCLS"],
         "inputs": [{"name": k, "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step": 0.01} for k in ["GOOGL", "IBM", "DEXJPUS", "DEXUSUK", "SP500", "DJIA", "VIXCLS"]]
     },
     "Bitcoin Signal Predictor": {
-        "endpoint": "logistic-pipeline-endpoint-auto-1",
+        "endpoint": "logistic-pipeline-endpoint-auto-15",
+        "explainer": 'explainer_bitcoin.shap',
+        "pipeline": 'finalized_bitcoin_model.tar.gz',
         "keys": ["Close Price"],
         "inputs": [{"name": "Close Price", "type": "number", "min": MIN_VAL, "max": MAX_VAL, "default": DEFAULT_VAL, "step": 100.0}]
     }
 }
+
+def load_pipeline(_session, bucket, key, model_name):
+    s3_client = _session.client('s3')
+    filename=MODEL_ENDPOINTS[model_name]["pipeline"]
+
+    s3_client.download_file(
+        Filename=filename, 
+        Bucket=bucket, 
+        Key= f"{key}/{os.path.basename(filename)}")
+        # Extract the .joblib file from the .tar.gz
+    with tarfile.open(filename, "r:gz") as tar:
+        tar.extractall(path=".")
+        joblib_file = [f for f in tar.getnames() if f.endswith('.joblib')][0]
+
+    # Load the full pipeline
+    return joblib.load(f"{joblib_file}")
+
+def load_shap_explainer(_session, bucket, key, local_path):
+    s3_client = _session.client('s3')
+    local_path = local_path
+
+    # Only download if it doesn't exist locally to save time
+    if not os.path.exists(local_path):
+        s3_client.download_file(Filename=local_path, Bucket=bucket, Key=key)
+        
+    with open(local_path, "rb") as f:
+        return shap.Explainer.load(f)
 
 # Prediction Logic
 def call_model_api(input_df, model_name):
@@ -111,14 +136,40 @@ def call_model_api(input_df, model_name):
         return f"Error: {str(e)}", 500
 
 # Local Explainability
-def display_explanation(shap_values):
-    st.subheader("🔍 Decision Transparency (SHAP)")
-    fig, ax = plt.subplots(figsize=(10, 4))
-    shap.plots.waterfall(shap_values[0], max_display=10)
-    st.pyplot(fig)
-    # top feature   
-    top_feature = shap_values[0].feature_names[0]
-    st.info(f"**Business Insight:** The most influential factor in this decision was **{top_feature}**.")
+def display_explanation(input_df, session, aws_bucket, model_name):
+    explainer_name = MODEL_ENDPOINTS[model_name]["explainer"]
+    explainer = load_shap_explainer(session, aws_bucket, posixpath.join('explainer', explainer_name),os.path.join(tempfile.gettempdir(), explainer_name))
+    if "Bitcoin" in model_name:
+
+        full_pipeline = load_pipeline(session, aws_bucket, 'sklearn-pipeline-deployment', model_name)
+        preprocessing_pipeline = Pipeline(steps=full_pipeline.steps[:-2])
+        input_df_transformed = preprocessing_pipeline.transform(input_df)
+        shap_values = explainer(input_df_transformed)
+        feature_names = full_pipeline[1:4].get_feature_names_out()
+
+        exp = shap.Explanation(
+            values=shap_values[0, :, 0],       # The matrix of SHAP values
+            base_values=explainer.expected_value[0], # The intercept/base value
+            data=input_df_transformed[0],        # The actual feature values for that user
+            feature_names=feature_names        # Your list of names
+            )
+
+        st.subheader("🔍 Decision Transparency (SHAP)")
+        fig, ax = plt.subplots(figsize=(10, 4))
+        shap.plots.waterfall(exp)
+        st.pyplot(fig)
+        # top feature   
+        top_feature = pd.Series(exp.values, index=exp.feature_names).abs().idxmax()
+        st.info(f"**Business Insight:** The most influential factor in this decision was **{top_feature}**.")
+    else:
+        shap_values = explainer(input_df)
+        st.subheader("🔍 Decision Transparency (SHAP)")
+        fig, ax = plt.subplots(figsize=(10, 4))
+        shap.plots.waterfall(shap_values[0], max_display=10)
+        st.pyplot(fig)
+        # top feature   
+        top_feature = shap_values[0].feature_names[0]
+        st.info(f"**Business Insight:** The most influential factor in this decision was **{top_feature}**.")
 
 # Streamlit UI
 st.set_page_config(page_title="ML Deployment Compiler", layout="wide")
@@ -151,8 +202,11 @@ if submitted:
     res, status = call_model_api(input_df,selected_model)
     if status == 200:
         st.metric("Prediction Result", res)
-        shap_values = explainer(input_df)
-        display_explanation(shap_values)
+        #explainer_name = MODEL_ENDPOINTS[selected_model]["explainer"]
+        #explainer = load_shap_explainer(session, aws_bucket, "explainer/"+explainer_name,"/tmp/"+explainer_name)
+
+        #shap_values = explainer(input_df)
+        display_explanation(input_df,session, aws_bucket,selected_model)
     else:
         st.error(res)
 
