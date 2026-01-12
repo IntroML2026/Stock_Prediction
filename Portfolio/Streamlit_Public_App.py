@@ -71,7 +71,7 @@ DEFAULT_VAL = df_prices.iloc[:, 0].mean()
 
 MODEL_ENDPOINTS = {
     "MSFT Stock Predictor": {
-        "endpoint": "lasso-pipeline-endpoint-auto",
+        "endpoint": "lasso-pipeline-endpoint-auto-15",
         "keys": ["GOOGL", "IBM", "DEXJPUS", "DEXUSUK", "SP500", "DJIA", "VIXCLS"],
         "inputs": [{"name": k, "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step": 0.01} for k in ["GOOGL", "IBM", "DEXJPUS", "DEXUSUK", "SP500", "DJIA", "VIXCLS"]]
     },
@@ -83,7 +83,7 @@ MODEL_ENDPOINTS = {
 }
 
 # Prediction Logic
-def call_model_api(input_df):
+def call_model_api(input_df, model_name):
     config = MODEL_ENDPOINTS[model_name]
     
     predictor = Predictor(
@@ -148,13 +148,12 @@ with st.form("pred_form"):
 
 if submitted:
 
-
     data_row = [user_inputs[k] for k in config["keys"]]
     # Prepare data (Stock predictor uses df_features, Bitcoin uses df_prices)
     base_df = df_features if "MSFT" in selected_model else df_prices
     input_df = pd.concat([base_df, pd.DataFrame([data_row], columns=base_df.columns)])
     
-    res, status = call_model_api(input_df)
+    res, status = call_model_api(input_df,selected_model)
     if status == 200:
         st.metric("Prediction Result", res)
         shap_values = explainer(input_df)
