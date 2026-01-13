@@ -38,6 +38,8 @@ aws_id = st.secrets["aws_credentials"]["AWS_ACCESS_KEY_ID"]
 aws_secret = st.secrets["aws_credentials"]["AWS_SECRET_ACCESS_KEY"]
 aws_token = st.secrets["aws_credentials"]["AWS_SESSION_TOKEN"]
 aws_bucket = st.secrets["aws_credentials"]["AWS_BUCKET"]
+aws_endpoint = st.secrets["aws_credentials"]["AWS_ENDPOINT"]
+aws_endpoint_bitcoin = st.secrets["aws_credentials"]["AWS_ENDPOINT_BITCOIN"]
 
 
 # AWS Session Management
@@ -66,14 +68,14 @@ DEFAULT_VAL = df_prices.iloc[:, 0].mean()
 
 MODEL_ENDPOINTS = {
     "MSFT Stock Predictor": {
-        "endpoint": "lasso-pipeline-endpoint-auto-15",
+        "endpoint": aws_endpoint,
         "explainer": 'explainer.shap',
         "pipeline": 'finalized_model.tar.gz',
         "keys": ["GOOGL", "IBM", "DEXJPUS", "DEXUSUK", "SP500", "DJIA", "VIXCLS"],
         "inputs": [{"name": k, "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step": 0.01} for k in ["GOOGL", "IBM", "DEXJPUS", "DEXUSUK", "SP500", "DJIA", "VIXCLS"]]
     },
     "Bitcoin Signal Predictor": {
-        "endpoint": "logistic-pipeline-endpoint-auto-15",
+        "endpoint": aws_endpoint_bitcoin,
         "explainer": 'explainer_bitcoin.shap',
         "pipeline": 'finalized_bitcoin_model.tar.gz',
         "keys": ["Close Price"],
