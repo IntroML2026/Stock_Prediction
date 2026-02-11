@@ -38,8 +38,6 @@ aws_secret = st.secrets["aws_credentials"]["AWS_SECRET_ACCESS_KEY"]
 aws_token = st.secrets["aws_credentials"]["AWS_SESSION_TOKEN"]
 aws_bucket = st.secrets["aws_credentials"]["AWS_BUCKET"]
 aws_endpoint = st.secrets["aws_credentials"]["AWS_ENDPOINT"]
-aws_endpoint_bitcoin = st.secrets["aws_credentials"]["AWS_ENDPOINT_BITCOIN"]
-
 
 # AWS Session Management
 @st.cache_resource # Use this to avoid downloading the file every time the page refreshes
