@@ -20,7 +20,7 @@ client = boto3.client(
 def call_bedrock_agent(user_input, session_id):
     response = client.invoke_agent(
         agentId=aws_agent_id,
-        agentAliasId=aws_agent_alias_id,"TSTALIASID",
+        agentAliasId=aws_agent_alias_id,
         sessionId=session_id, # Bedrock handles memory for you!
         inputText=user_input
     )
