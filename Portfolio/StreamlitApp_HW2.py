@@ -111,6 +111,9 @@ def call_model_api(input_df):
 def display_explanation(input_df, session, aws_bucket):
     explainer_name = MODEL_INFO["explainer"]
     explainer = load_shap_explainer(session, aws_bucket, posixpath.join('explainer', explainer_name),os.path.join(tempfile.gettempdir(), explainer_name))
+    # Inspect what SHAP thinks the features are
+    fn = getattr(explainer.masker, "feature_names", None)
+    print(fn)
     shap_values = explainer(input_df)
     st.subheader("🔍 Decision Transparency (SHAP)")
     fig, ax = plt.subplots(figsize=(10, 4))
@@ -151,6 +154,7 @@ if submitted:
         display_explanation(input_df,session, aws_bucket)
     else:
         st.error(res)
+
 
 
 
