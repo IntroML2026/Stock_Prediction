@@ -114,7 +114,10 @@ def display_explanation(input_df, session, aws_bucket):
     # Inspect what SHAP thinks the features are
     fn = getattr(explainer.masker, "feature_names", None)
     print(fn)
-    shap_values = explainer(input_df)
+    expected_cols = list(explainer.masker.feature_names)
+    input_df_aligned = input_df[expected_cols]
+    shap_values = explainer(input_df_aligned)
+    #shap_values = explainer(input_df)
     st.subheader("🔍 Decision Transparency (SHAP)")
     fig, ax = plt.subplots(figsize=(10, 4))
     shap.plots.waterfall(shap_values[0], max_display=10)
@@ -154,6 +157,7 @@ if submitted:
         display_explanation(input_df,session, aws_bucket)
     else:
         st.error(res)
+
 
 
 
