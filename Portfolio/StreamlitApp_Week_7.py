@@ -118,22 +118,19 @@ def display_explanation(input_df, session, aws_bucket):
     full_pipeline = load_pipeline(session, aws_bucket, 'sklearn-pipeline-deployment')
     preprocessing_pipeline = Pipeline(steps=full_pipeline.steps[:-2])
     input_df_transformed = preprocessing_pipeline.transform(input_df)
-    shap_values = explainer(input_df_transformed)
     feature_names = full_pipeline[1:4].get_feature_names_out()
+    input_df_transformed = pd.DataFrame(input_df_transformed, columns=feature_names)
+    shap_values = explainer(input_df_transformed)
 
-    exp = shap.Explanation(
-        values=shap_values[0, :, 0],       # The matrix of SHAP values
-        base_values=explainer.expected_value[0], # The intercept/base value
-        data=input_df_transformed[0],        # The actual feature values for that user
-        feature_names=feature_names        # Your list of names
-        )
+    # Now this simplified line will work and include names
+    shap.plots.waterfall(shap_values[0, :, 0])
 
     st.subheader("🔍 Decision Transparency (SHAP)")
     fig, ax = plt.subplots(figsize=(10, 4))
     shap.plots.waterfall(exp)
     st.pyplot(fig)
     # top feature   
-    top_feature = pd.Series(exp.values, index=exp.feature_names).abs().idxmax()
+    top_feature = pd.Series(shap_values[0, :, 0].values, index=shap_values[0, :, 0].feature_names).abs().idxmax()
     st.info(f"**Business Insight:** The most influential factor in this decision was **{top_feature}**.")
 
 # Streamlit UI
