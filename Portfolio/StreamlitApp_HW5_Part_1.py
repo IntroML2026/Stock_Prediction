@@ -116,12 +116,23 @@ def display_explanation(input_df, session, aws_bucket):
     explainer_name = MODEL_INFO["explainer"]
     explainer = load_shap_explainer(session, aws_bucket, posixpath.join('explainer', explainer_name),os.path.join(tempfile.gettempdir(), explainer_name))
     
-    best_pipeline = load_pipeline(session, aws_bucket, 'sklearn-pipeline-deployment')
-    preprocessing_pipeline = Pipeline(steps=best_pipeline.steps[0:1])
-    input_df_transformed = preprocessing_pipeline.transform(input_df)
-    feature_names = best_pipeline[0:1].get_feature_names_out()
-    input_df_transformed = pd.DataFrame(input_df_transformed, columns=feature_names)
-    shap_values = explainer(input_df_transformed)
+    #best_pipeline = load_pipeline(session, aws_bucket, 'sklearn-pipeline-deployment')
+    #preprocessing_pipeline = Pipeline(steps=best_pipeline.steps[0:1])
+    #input_df_transformed = preprocessing_pipeline.transform(input_df)
+    #feature_names = best_pipeline[0:1].get_feature_names_out()
+    #input_df_transformed = pd.DataFrame(input_df_transformed, columns=feature_names)
+    dataset = pd.read_csv(r'./SP500Data.csv',index_col=0)
+    target = 'MSFT'
+    target_price = input_df[target]
+    closest_date = (dataset[target] - float(target_price)).abs().idxmin()
+
+    return_period = 5
+
+    X = np.log(dataset.drop([target],axis=1)).diff(return_period)
+    X = np.exp(X).cumsum()
+    X.columns = [name + "_CR_Cum" for name in X.columns]
+    
+    shap_values = explainer(X.loc[[closest_date]])
     
     st.subheader("🔍 Decision Transparency (SHAP)")
     fig, ax = plt.subplots(figsize=(10, 4))
