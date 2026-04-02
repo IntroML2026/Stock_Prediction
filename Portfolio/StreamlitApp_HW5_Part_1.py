@@ -20,6 +20,7 @@ from sagemaker.deserializers import NumpyDeserializer
 
 from sklearn.pipeline import Pipeline
 import shap
+import inference_pca
 
 
 # Setup & Path Configuration
