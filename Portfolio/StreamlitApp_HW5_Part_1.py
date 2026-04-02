@@ -97,8 +97,8 @@ def call_model_api(input_df):
     predictor = Predictor(
         endpoint_name=MODEL_INFO["endpoint"],
         sagemaker_session=sm_session,
-        #serializer=JSONSerializer()
-        deserializer=NumpyDeserializer() 
+        serializer=JSONSerializer()
+        #deserializer=NumpyDeserializer() 
     )
 
     try:
