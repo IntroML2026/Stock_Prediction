@@ -131,8 +131,16 @@ def display_explanation(input_df, session, aws_bucket):
     X = np.log(dataset.drop([target],axis=1)).diff(return_period)
     X = np.exp(X).cumsum()
     X.columns = [name + "_CR_Cum" for name in X.columns]
+
+    X = X.loc[[closest_date]]
+
+    best_pipeline = load_pipeline(session, aws_bucket, 'sklearn-pipeline-deployment')
+    preprocessing_pipeline = Pipeline(steps=best_pipeline.steps[0:2])
+    input_df_transformed = preprocessing_pipeline.transform(X)
+    feature_names = best_pipeline[0:2].get_feature_names_out()
+    input_df_transformed = pd.DataFrame(input_df_transformed, columns=feature_names)
     
-    shap_values = explainer(X.loc[[closest_date]])
+    shap_values = explainer(input_df_transformed)
     
     st.subheader("🔍 Decision Transparency (SHAP)")
     fig, ax = plt.subplots(figsize=(10, 4))
