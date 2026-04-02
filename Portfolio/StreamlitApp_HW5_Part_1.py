@@ -102,7 +102,7 @@ def call_model_api(input_df):
 
     try:
         st.write(input_df)
-        st.write(type(input_df))
+        st.text(type(input_df))
         raw_pred = predictor.predict(input_df)
         pred_val = pd.DataFrame(raw_pred).values[-1][0]
         return round(float(pred_val), 4), 200
