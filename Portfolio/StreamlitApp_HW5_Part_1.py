@@ -57,8 +57,8 @@ sm_session = sagemaker.Session(boto_session=session)
 
 MODEL_INFO = {
         "endpoint": aws_endpoint,
-        "explainer": 'explainer.shap',
-        "pipeline": 'finalized_model.tar.gz',
+        "explainer": 'explainer_pca.shap',
+        "pipeline": 'finalized_pca_model.tar.gz',
         "keys": ["MSFT"],
         "inputs": [{"name": k, "type": "number", "min": 0.0, "default": 100.0, "step": 10.0} for k in ["MSFT"]]
 }
@@ -112,19 +112,19 @@ def display_explanation(input_df, session, aws_bucket):
     explainer_name = MODEL_INFO["explainer"]
     explainer = load_shap_explainer(session, aws_bucket, posixpath.join('explainer', explainer_name),os.path.join(tempfile.gettempdir(), explainer_name))
     
-    best_pipeline = load_pipeline(session, aws_bucket, 'sklearn-pipeline-deployment')
-    preprocessing_pipeline = Pipeline(steps=best_pipeline.steps[:-2])
-    input_df_transformed = preprocessing_pipeline.transform(input_df)
-    feature_names = best_pipeline[1:4].get_feature_names_out()
-    input_df_transformed = pd.DataFrame(input_df_transformed, columns=feature_names)
-    shap_values = explainer(input_df_transformed)
+    #best_pipeline = load_pipeline(session, aws_bucket, 'sklearn-pipeline-deployment')
+    #preprocessing_pipeline = Pipeline(steps=best_pipeline.steps[:-2])
+    #input_df_transformed = preprocessing_pipeline.transform(input_df)
+    #feature_names = best_pipeline[1:4].get_feature_names_out()
+    #input_df_transformed = pd.DataFrame(input_df_transformed, columns=feature_names)
+    shap_values = explainer(input_df)
     
     st.subheader("🔍 Decision Transparency (SHAP)")
     fig, ax = plt.subplots(figsize=(10, 4))
     shap.plots.waterfall(shap_values[0], max_display=10)
     st.pyplot(fig)
     # top feature 
-    top_feature = pd.Series(shap_values[0, :, 0].values, index=shap_values[0, :, 0].feature_names).abs().idxmax()
+    top_feature = pd.Series(shap_values[0].values, index=shap_values[0].feature_names).abs().idxmax()
     st.info(f"**Business Insight:** The most influential factor in this decision was **{top_feature}**.")
 
 # Streamlit UI
