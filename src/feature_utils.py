@@ -7,9 +7,7 @@ import requests
 #from datetime import datetime, timedelta
 import os
 import sys
-
-import os
-import sys
+import json
 
 
 # ... continue with your script ...
