@@ -120,15 +120,12 @@ def display_explanation(input_df, session, aws_bucket):
 
     raw_json_input = json.dumps(input_df)
 
-    file_path = os.path.join(current_dir, 'SP500Data.csv')
+    #file_path = os.path.join(current_dir, 'SP500Data.csv')
 
-    st.text(sys.path)
-    st.text(current_dir)
-    st.text(file_path)
-    #clean_df = inference_pca.input_fn(raw_json_input, 'application/json')
+    clean_df = inference_pca.input_fn(raw_json_input, 'application/json')
     #st.text(type(clean_df))
 
-    dataset = pd.read_csv('../SP500Data.csv',index_col=0)
+    dataset = pd.read_csv('Portfolio/SP500Data.csv',index_col=0)
     random = 'IBM'
     random_price = input_df[random]
     closest_date = (dataset[random] - float(random_price)).abs().idxmin()
@@ -139,7 +136,7 @@ def display_explanation(input_df, session, aws_bucket):
     X = np.exp(X).cumsum()
     X.columns = [name + "_CR_Cum" for name in X.columns]
 
-    input_df = X.loc[[closest_date]] #clean_df #
+    input_df = clean_df #X.loc[[closest_date]] # #
 
     best_pipeline = load_pipeline(session, aws_bucket, 'sklearn-pipeline-deployment')
     
