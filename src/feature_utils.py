@@ -88,3 +88,23 @@ def get_bitcoin_historical_prices(days = 60):
     df = df[['Date', 'Close Price (USD)']].set_index('Date')
     return df
 
+def convert_input_pca_regression(request_body, request_content_type):
+    print(f"Receiving data of type: {request_content_type}")
+    
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(current_dir, 'SP500Data.csv')
+    
+    dataset = pd.read_csv(file_path,index_col=0)
+
+    target = 'MSFT'
+    random = 'IBM'
+    random_price = json.loads(request_body)[random]
+    closest_date = (dataset[random] - float(random_price)).abs().idxmin()
+
+    return_period = 5
+
+    X = np.log(dataset.drop([target],axis=1)).diff(return_period)
+    X = np.exp(X).cumsum()
+    X.columns = [name + "_CR_Cum" for name in X.columns]
+
+    return X.loc[[closest_date]]
