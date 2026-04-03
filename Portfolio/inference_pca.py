@@ -63,7 +63,7 @@ def predict_fn(input_data, model):
 def input_fn(request_body, request_content_type):
     print(f"Receiving data of type: {request_content_type}")
 
-    dataset = pd.read_csv(r'Portfolio/SP500Data.csv',index_col=0)
+    dataset = pd.read_csv(r'./Portfolio/SP500Data.csv',index_col=0)
     target = 'MSFT'
     random = 'IBM'
     random_price = json.loads(request_body)[random]
