@@ -63,8 +63,7 @@ def predict_fn(input_data, model):
 def input_fn(request_body, request_content_type):
     print(f"Receiving data of type: {request_content_type}")
 
-    file_path = os.path.join(model_dir, 'SP500Data.csv')
-    dataset = pd.read_csv(file_path,index_col=0)
+    dataset = pd.read_csv(r'./SP500Data.csv',index_col=0)
     random = 'IBM'
     random_price = json.loads(request_body)[random]
     closest_date = (dataset[random] - float(random_price)).abs().idxmin()
