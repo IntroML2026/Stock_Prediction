@@ -61,8 +61,8 @@ MODEL_INFO = {
         "endpoint": aws_endpoint,
         "explainer": 'explainer_pca.shap',
         "pipeline": 'finalized_pca_model.tar.gz',
-        "keys": ["IBM"],
-        "inputs": [{"name": k, "type": "number", "min": 0.0, "default": 100.0, "step": 10.0} for k in ["IBM"]]
+        "keys": ["MSFT"],
+        "inputs": [{"name": k, "type": "number", "min": 0.0, "default": 100.0, "step": 10.0} for k in ["MSFT"]]
 }
 
 def load_pipeline(_session, bucket, key):
@@ -118,7 +118,7 @@ def display_explanation(input_df, session, aws_bucket):
     explainer = load_shap_explainer(session, aws_bucket, posixpath.join('explainer', explainer_name),os.path.join(tempfile.gettempdir(), explainer_name))
 
     dataset = pd.read_csv(r'./SP500Data.csv',index_col=0)
-    random = 'IBM'
+    random = 'MSFT'
     random_price = json.loads(request_body)[random]
     closest_date = (dataset[random] - float(random_price)).abs().idxmin()
 
