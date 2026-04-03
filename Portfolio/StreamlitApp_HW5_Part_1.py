@@ -121,7 +121,7 @@ def display_explanation(input_df, session, aws_bucket):
     raw_json_input = json.dumps(input_df)
 
     #file_path = os.path.join(current_dir, 'SP500Data.csv')
-
+    st.text(sys.path)
     clean_df = inference_pca.input_fn(raw_json_input, 'application/json')
     #st.text(type(clean_df))
 
