@@ -33,6 +33,7 @@ if project_root not in sys.path:
     sys.path.append(project_root)
 
 import importlib
+import src.feature_utils
 importlib.reload(src.feature_utils)
 
 from src.feature_utils import convert_input_pca_regression
