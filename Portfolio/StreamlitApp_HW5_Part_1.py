@@ -119,7 +119,7 @@ def display_explanation(input_df, session, aws_bucket):
     explainer = load_shap_explainer(session, aws_bucket, posixpath.join('explainer', explainer_name),os.path.join(tempfile.gettempdir(), explainer_name))
 
     raw_json_input = json.dumps(input_df)
-    current_dir = os.path.dirname(os.path.abspath(__file__))
+
     file_path = os.path.join(current_dir, 'SP500Data.csv')
 
     st.text(sys.path)
@@ -128,7 +128,7 @@ def display_explanation(input_df, session, aws_bucket):
     #clean_df = inference_pca.input_fn(raw_json_input, 'application/json')
     #st.text(type(clean_df))
 
-    dataset = pd.read_csv(file_path,index_col=0)
+    dataset = pd.read_csv('Portfolio/SP500Data.csv',index_col=0)
     random = 'IBM'
     random_price = input_df[random]
     closest_date = (dataset[random] - float(random_price)).abs().idxmin()
