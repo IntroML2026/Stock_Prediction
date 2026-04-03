@@ -32,8 +32,7 @@ project_root = os.path.abspath(os.path.join(current_dir, '..'))
 if project_root not in sys.path:
     sys.path.append(project_root)
 
-import inference_pca
-#from src.feature_utils import extract_features
+from src.feature_utils import convert_input_pca_regression
 
 # Access the secrets
 aws_id = st.secrets["aws_credentials"]["AWS_ACCESS_KEY_ID"]
@@ -124,7 +123,7 @@ def display_explanation(input_df, session, aws_bucket):
     st.text(sys.path)
     st.text(project_root)
     st.text(current_dir)
-    clean_df = inference_pca.input_fn(raw_json_input, 'application/json')
+    clean_df = convert_input_pca_regression(raw_json_input, 'application/json')
     #st.text(type(clean_df))
 
     dataset = pd.read_csv('Portfolio/SP500Data.csv',index_col=0)
