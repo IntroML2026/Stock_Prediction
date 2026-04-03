@@ -32,10 +32,6 @@ project_root = os.path.abspath(os.path.join(current_dir, '..'))
 if project_root not in sys.path:
     sys.path.append(project_root)
 
-import importlib
-import src.feature_utils
-importlib.reload(src.feature_utils)
-
 from src.feature_utils import convert_input_pca_regression
 
 # Access the secrets
@@ -122,33 +118,14 @@ def display_explanation(input_df, session, aws_bucket):
     explainer = load_shap_explainer(session, aws_bucket, posixpath.join('explainer', explainer_name),os.path.join(tempfile.gettempdir(), explainer_name))
 
     raw_json_input = json.dumps(input_df)
-
-    #file_path = os.path.join(current_dir, 'SP500Data.csv')
-    st.text(sys.path)
-    st.text(project_root)
-    st.text(current_dir)
-    clean_df = convert_input_pca_regression(raw_json_input, 'application/json')
-    #st.text(type(clean_df))
-
-    dataset = pd.read_csv('Portfolio/SP500Data.csv',index_col=0)
-    random = 'IBM'
-    random_price = input_df[random]
-    closest_date = (dataset[random] - float(random_price)).abs().idxmin()
-
-    return_period = 5
-
-    X = np.log(dataset.drop(['MSFT'],axis=1)).diff(return_period)
-    X = np.exp(X).cumsum()
-    X.columns = [name + "_CR_Cum" for name in X.columns]
-
-    input_df = clean_df #X.loc[[closest_date]] # #
+    input_df = convert_input_pca_regression(raw_json_input, 'application/json')
 
     best_pipeline = load_pipeline(session, aws_bucket, 'sklearn-pipeline-deployment')
     
     preprocessing_pipeline = Pipeline(steps=best_pipeline.steps[0:2])
     input_df_transformed = preprocessing_pipeline.transform(input_df)
-    feature_names = best_pipeline[0:2].get_feature_names_out()
-    input_df_transformed = pd.DataFrame(input_df_transformed, columns=feature_names)
+    #feature_names = best_pipeline[0:2].get_feature_names_out()
+    #input_df_transformed = pd.DataFrame(input_df_transformed, columns=feature_names)
     shap_values = explainer(input_df_transformed)
   
     st.subheader("🔍 Decision Transparency (SHAP)")
