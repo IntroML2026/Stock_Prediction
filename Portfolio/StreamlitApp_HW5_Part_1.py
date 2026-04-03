@@ -27,10 +27,10 @@ import shap
 warnings.simplefilter("ignore")
 
 # Fix path for Streamlit Cloud (ensure 'src' is findable)
-#current_dir = os.path.dirname(os.path.abspath(__file__))
-#project_root = os.path.abspath(os.path.join(current_dir, '..'))
-#if project_root not in sys.path:
-#    sys.path.append(project_root)
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(current_dir, '..'))
+if project_root not in sys.path:
+    sys.path.append(project_root)
 
 import inference_pca
 #from src.feature_utils import extract_features
@@ -119,6 +119,8 @@ def display_explanation(input_df, session, aws_bucket):
     explainer = load_shap_explainer(session, aws_bucket, posixpath.join('explainer', explainer_name),os.path.join(tempfile.gettempdir(), explainer_name))
 
     raw_json_input = json.dumps(input_df)
+
+    st.text(sys.path)
     #clean_df = inference_pca.input_fn(raw_json_input, 'application/json')
     #st.text(type(clean_df))
 
