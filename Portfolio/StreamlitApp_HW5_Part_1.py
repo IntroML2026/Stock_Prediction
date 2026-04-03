@@ -103,10 +103,7 @@ def call_model_api(input_df):
     )
 
     try:
-        st.write(input_df)
-        st.text(type(input_df))
         raw_pred = predictor.predict(input_df)
-        st.text(raw_pred)
         pred_val = pd.DataFrame(raw_pred).values[-1][0]
         return round(float(pred_val), 4), 200
     except Exception as e:
