@@ -32,6 +32,9 @@ project_root = os.path.abspath(os.path.join(current_dir, '..'))
 if project_root not in sys.path:
     sys.path.append(project_root)
 
+import importlib
+importlib.reload(src.feature_utils)
+
 from src.feature_utils import convert_input_pca_regression
 
 # Access the secrets
