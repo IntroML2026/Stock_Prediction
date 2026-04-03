@@ -120,6 +120,7 @@ def display_explanation(input_df, session, aws_bucket):
 
     raw_json_input = json.dumps(input_df)
     clean_df = inference_pca.input_fn(raw_json_input, 'application/json')
+    st.text(type(clean_df))
 
     dataset = pd.read_csv(r'./SP500Data.csv',index_col=0)
     random = 'IBM'
@@ -132,7 +133,7 @@ def display_explanation(input_df, session, aws_bucket):
     X = np.exp(X).cumsum()
     X.columns = [name + "_CR_Cum" for name in X.columns]
 
-    input_df = X.loc[[closest_date]]
+    input_df = clean_df #X.loc[[closest_date]]
 
     best_pipeline = load_pipeline(session, aws_bucket, 'sklearn-pipeline-deployment')
     
