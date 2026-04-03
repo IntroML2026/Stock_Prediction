@@ -64,13 +64,14 @@ def input_fn(request_body, request_content_type):
     print(f"Receiving data of type: {request_content_type}")
 
     dataset = pd.read_csv(r'./SP500Data.csv',index_col=0)
+    target = 'MSFT'
     random = 'IBM'
     random_price = json.loads(request_body)[random]
     closest_date = (dataset[random] - float(random_price)).abs().idxmin()
 
     return_period = 5
 
-    X = np.log(dataset.drop([random],axis=1)).diff(return_period)
+    X = np.log(dataset.drop([target],axis=1)).diff(return_period)
     X = np.exp(X).cumsum()
     X.columns = [name + "_CR_Cum" for name in X.columns]
 
