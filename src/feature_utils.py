@@ -107,8 +107,7 @@ def convert_input_pca_regression(request_body, request_content_type):
         RSI_15 = json.loads(request_body)[techIndicator_1]
         techIndicator_2 = 'MOM_15'
         MOM_15 = json.loads(request_body)[techIndicator_2]
-        remainingColumns = X.columns.difference([techIndicator_1,techIndicator_2]).tolist()
-        
+
         # Calculate the distance
         distances = np.sqrt(
             (X[techIndicator_1] - RSI_15)**2 + 
@@ -116,7 +115,7 @@ def convert_input_pca_regression(request_body, request_content_type):
         )
         
         closest_index = distances.idxmin()
-        closest_row = X.loc[[closest_index]][remainingColumns]
+        closest_row = X.loc[[closest_index]]
     
         closest_row[techIndicator_1] = RSI_15
         closest_row[techIndicator_2] = MOM_15
@@ -135,8 +134,6 @@ def convert_input_pca_regression(request_body, request_content_type):
         X = np.exp(X).cumsum()
         X.columns = [name + "_CR_Cum" for name in X.columns]
         
-        remainingColumns = X.columns.difference([SP500_1,SP500_2]).tolist()
-        
         # Calculate the distance
         distances = np.sqrt(
             (X[SP500_1] - IBM_CR_Cum)**2 + 
@@ -144,7 +141,7 @@ def convert_input_pca_regression(request_body, request_content_type):
         )
         
         closest_index = distances.idxmin()
-        closest_row = X.loc[[closest_index]][remainingColumns]
+        closest_row = X.loc[[closest_index]]
     
         closest_row[SP500_1] = IBM_CR_Cum
         closest_row[SP500_2] = NVDA_CR_Cum
