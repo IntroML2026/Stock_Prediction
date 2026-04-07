@@ -7,10 +7,10 @@ import requests
 #from datetime import datetime, timedelta
 import os
 import sys
-import json
+import json #
 
+from src.Custom_Classes import FeatureEngineer
 
-# ... continue with your script ...
 
 def extract_features():
 
@@ -92,18 +92,62 @@ def convert_input_pca_regression(request_body, request_content_type):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.abspath(os.path.join(current_dir, '..'))
     file_path = os.path.join(project_root, 'Portfolio/SP500Data.csv')
-    
+
     dataset = pd.read_csv(file_path,index_col=0)
 
     target = 'MSFT'
-    random = 'IBM'
-    random_price = json.loads(request_body)[random]
-    closest_date = (dataset[random] - float(random_price)).abs().idxmin()
 
-    return_period = 5
+    option = 1
 
-    X = np.log(dataset.drop([target],axis=1)).diff(return_period)
-    X = np.exp(X).cumsum()
-    X.columns = [name + "_CR_Cum" for name in X.columns]
+    if option == 2:
 
-    return X.loc[[closest_date]]
+        X = FeatureEngineer(windows=[10,15]).transform(dataset[[target]])
+    
+        techIndicator_1 = 'RSI_15'
+        RSI_15 = json.loads(request_body)[techIndicator_1]
+        techIndicator_2 = 'MOM_15'
+        MOM_15 = json.loads(request_body)[techIndicator_2]
+        remainingColumns = X.columns.difference([techIndicator_1,techIndicator_2]).tolist()
+        
+        # Calculate the distance
+        distances = np.sqrt(
+            (X[techIndicator_1] - RSI_15)**2 + 
+            (X[techIndicator_2] - MOM_15)**2
+        )
+        
+        closest_index = distances.idxmin()
+        closest_row = X.loc[[closest_index]][remainingColumns]
+    
+        closest_row[techIndicator_1] = RSI_15
+        closest_row[techIndicator_2] = MOM_15
+    
+        return closest_row
+    else:
+
+        return_period = 5
+
+        SP500_1 = 'IBM_CR_Cum'
+        IBM_CR_Cum = json.loads(request_body)[SP500_1]
+        SP500_2 = 'NVDA_CR_Cum'
+        NVDA_CR_Cum = json.loads(request_body)[SP500_2]
+
+        X = np.log(dataset.drop([target],axis=1)).diff(return_period)
+        X = np.exp(X).cumsum()
+        X.columns = [name + "_CR_Cum" for name in X.columns]
+        
+        remainingColumns = X.columns.difference([SP500_1,SP500_2]).tolist()
+        
+        # Calculate the distance
+        distances = np.sqrt(
+            (X[SP500_1] - IBM_CR_Cum)**2 + 
+            (X[SP500_2] - NVDA_CR_Cum)**2
+        )
+        
+        closest_index = distances.idxmin()
+        closest_row = X.loc[[closest_index]][remainingColumns]
+    
+        closest_row[SP500_1] = IBM_CR_Cum
+        closest_row[SP500_2] = NVDA_CR_Cum
+    
+        return closest_row
+    
