@@ -32,6 +32,19 @@ project_root = os.path.abspath(os.path.join(current_dir, '..'))
 if project_root not in sys.path:
     sys.path.append(project_root)
 
+import sys, os
+import importlib
+
+# Build the path to the 'src' directory (relative to the notebook's location)
+module_path = os.path.abspath('..') 
+
+# Add the 'src' directory to the system path list
+if module_path not in sys.path:
+    sys.path.append(module_path)
+    
+import src.feature_utils
+importlib.reload(src.feature_utils)
+
 from src.feature_utils import convert_input_pca_regression
 
 # Access the secrets
