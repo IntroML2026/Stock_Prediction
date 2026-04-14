@@ -20,7 +20,8 @@ from sagemaker.deserializers import NumpyDeserializer
 from sklearn.pipeline import Pipeline
 import shap
 
-import pickle
+from joblib import dump
+from joblib import load
 
 
 
