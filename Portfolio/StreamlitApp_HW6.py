@@ -149,8 +149,9 @@ if submitted:
 
     data_row = [user_inputs[k] for k in MODEL_INFO["keys"]]
     # Prepare data
-    base_df = df_features
-    input_df = pd.concat([base_df, pd.DataFrame([data_row], columns=base_df.columns)])
+    # base_df = df_features
+    # input_df = pd.concat([base_df, pd.DataFrame([data_row], columns=base_df.columns)])
+    input_df = pd.DataFrame([data_row], columns=MODEL_INFO["keys"])
     
     res, status = call_model_api(input_df)
     if status == 200:
