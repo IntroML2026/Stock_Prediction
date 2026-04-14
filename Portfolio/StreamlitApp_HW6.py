@@ -30,7 +30,7 @@ project_root = os.path.abspath(os.path.join(current_dir, '..'))
 if project_root not in sys.path:
     sys.path.append(project_root)
 
-from src.feature_utils import extract_features
+#from src.feature_utils import extract_features
 
 # Access the secrets
 aws_id = st.secrets["aws_credentials"]["AWS_ACCESS_KEY_ID"]
@@ -57,10 +57,10 @@ df_features = extract_features()
 
 MODEL_INFO = {
         "endpoint": aws_endpoint,
-        "explainer": 'explainer.shap',
-        "pipeline": 'finalized_model.tar.gz',
-        "keys": ["GOOGL", "IBM", "DEXJPUS", "DEXUSUK", "SP500", "DJIA", "VIXCLS"],
-        "inputs": [{"name": k, "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step": 0.01} for k in ["GOOGL", "IBM", "DEXJPUS", "DEXUSUK", "SP500", "DJIA", "VIXCLS"]]
+        "explainer": 'explainer_sentiment.shap',
+        "pipeline": 'finalized_sentiment_model.tar.gz',
+        "keys": ['ADBE','MSFT','JPM','sentiment_textblob'],
+        "inputs": [{"name": k, "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step": 0.01} for k in ['ADBE','MSFT','JPM','sentiment_textblob']]
 }
 
 def load_pipeline(_session, bucket, key):
@@ -113,9 +113,9 @@ def display_explanation(input_df, session, aws_bucket):
     explainer = load_shap_explainer(session, aws_bucket, posixpath.join('explainer', explainer_name),os.path.join(tempfile.gettempdir(), explainer_name))
     
     best_pipeline = load_pipeline(session, aws_bucket, 'sklearn-pipeline-deployment')
-    preprocessing_pipeline = Pipeline(steps=best_pipeline.steps[:-2])
+    preprocessing_pipeline = Pipeline(steps=best_pipeline.steps[:-1])
     input_df_transformed = preprocessing_pipeline.transform(input_df)
-    feature_names = best_pipeline[1:4].get_feature_names_out()
+    feature_names = best_pipeline[:-1].get_feature_names_out()
     input_df_transformed = pd.DataFrame(input_df_transformed, columns=feature_names)
     shap_values = explainer(input_df_transformed)
     
