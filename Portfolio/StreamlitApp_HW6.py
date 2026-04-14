@@ -20,6 +20,9 @@ from sagemaker.deserializers import NumpyDeserializer
 from sklearn.pipeline import Pipeline
 import shap
 
+import pickle
+
+
 
 # Setup & Path Configuration
 warnings.simplefilter("ignore")
@@ -88,7 +91,8 @@ def load_shap_explainer(_session, bucket, key, local_path):
         s3_client.download_file(Filename=local_path, Bucket=bucket, Key=key)
         
     with open(local_path, "rb") as f:
-        return shap.Explainer.load(f)
+        return load(f)
+        #return shap.Explainer.load(f)
 
 # Prediction Logic
 def call_model_api(input_df):
