@@ -109,7 +109,7 @@ def call_model_api(input_df):
         # For regression
         # raw_pred = predictor.predict(input_df)
         # pred_val = pd.DataFrame(raw_pred).values[-1][0]
-        return round(float(pred_val), 4), 200
+        # return round(float(pred_val), 4), 200
         # For classification
         raw_pred = predictor.predict(input_df)
         pred_val = pd.DataFrame(raw_pred).values[-1][0]
