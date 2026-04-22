@@ -74,8 +74,8 @@ MODEL_INFO = {
     "endpoint"  : aws_endpoint,
     "explainer" : "explainer_fraud.shap",
     "pipeline"  : "fine_tuned_pipeline.tar.gz",
-    "keys"      : ['TransactionAmt','addr1'],
-    "inputs"    : [{"name": k, "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step": 0.01} for k in ['TransactionAmt','addr1']]
+    "keys"      : ['TransactionAmt','addr1','addr2'],
+    "inputs"    : [{"name": k, "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step": 0.01} for k in ['TransactionAmt','addr1','addr2']]
 }
 
 
@@ -180,13 +180,6 @@ with st.form("pred_form"):
 
 if submitted:
 
-    data_row = [user_inputs[k] for k in MODEL_INFO["keys"]]
-    # Prepare data
-    # base_df = df_features
-    # input_df = pd.concat([base_df, pd.DataFrame([data_row], columns=base_df.columns)])
-    input_df = pd.DataFrame([data_row], columns=MODEL_INFO["keys"])
-    ### Here i need to add a way to make all of the other columns missing besides my keys (imputer should do the rest)
- 
     res, status = call_model_api([user_inputs])
     if status == 200:
         st.metric("Prediction Result", res)
