@@ -74,8 +74,8 @@ MODEL_INFO = {
     "endpoint"  : aws_endpoint,
     "explainer" : "explainer_fraud.shap",
     "pipeline"  : "fine_tuned_pipeline.tar.gz",
-    "keys"      : ['TransactionAmt'],
-    "inputs"    : [{"name": k, "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step": 0.01} for k in ['TransactionAmt']]
+    "keys"      : ['TransactionAmt','addr1'],
+    "inputs"    : [{"name": k, "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step": 0.01} for k in ['TransactionAmt','addr1']]
 }
 
 
@@ -190,6 +190,6 @@ if submitted:
     res, status = call_model_api([user_inputs])
     if status == 200:
         st.metric("Prediction Result", res)
-        display_explanation(user_inputs,session, aws_bucket)
+        display_explanation([user_inputs],session, aws_bucket)
     else:
         st.error(res)
