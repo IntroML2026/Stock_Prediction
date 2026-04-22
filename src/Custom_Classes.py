@@ -245,3 +245,202 @@ class Word2VecTransformer(BaseEstimator, TransformerMixin):
 # --- Usage Example ---
 # extractor = PairFeatureExtractor(window=60)
 # features_df = extractor.transform(data['AAPL'], data['MSFT'])
+
+
+
+
+
+
+from sklearn.base import BaseEstimator, TransformerMixin
+
+#class DropHighMissingCols(BaseEstimator, TransformerMixin):
+    
+#    def __init__(self, threshold=0.5):
+#        self.threshold = threshold
+#        self.cols_to_drop_ = []
+#
+#    def fit(self, X, y=None):
+#        missing_ratio = X.isnull().mean()
+#        self.cols_to_drop_ = missing_ratio[missing_ratio > self.threshold].index.tolist()
+#        return self
+#
+#    def transform(self, X, y=None):
+#        return X.drop(columns=self.cols_to_drop_, errors='ignore')
+
+class DropHighMissingCols(BaseEstimator, TransformerMixin):
+    
+    def __init__(self, threshold=0.5, protect_cols=None):
+        self.threshold     = threshold
+        self.protect_cols  = protect_cols or []
+        self.cols_to_drop_ = []
+        self.numeric_medians_ = None
+        self.cat_modes_       = None
+
+    def fit(self, X, y=None):
+        # Learn which columns to drop
+        missing_ratio = X.isnull().mean()
+        self.cols_to_drop_ = [
+            col for col in missing_ratio[missing_ratio > self.threshold].index
+            if col not in self.protect_cols
+        ]
+
+        # Learn medians and modes from training data only
+        remaining = X.drop(columns=self.cols_to_drop_, errors='ignore')
+
+        numeric_cols          = remaining.select_dtypes(include=['float64', 'int64']).columns
+        self.numeric_medians_ = remaining[numeric_cols].median()
+
+        cat_cols          = remaining.select_dtypes(include=['object']).columns
+        self.cat_modes_   = remaining[cat_cols].mode().iloc[0]
+
+        return self
+
+    def transform(self, X, y=None):
+        X = X.copy()
+
+        # Drop high missing columns
+        X = X.drop(columns=self.cols_to_drop_, errors='ignore')
+
+        # Fill numeric with learned medians
+        numeric_cols = X.select_dtypes(include=['float64', 'int64']).columns
+        X[numeric_cols] = X[numeric_cols].fillna(self.numeric_medians_[numeric_cols])
+
+        # Fill categorical with learned modes
+        cat_cols = X.select_dtypes(include=['object']).columns
+        X[cat_cols] = X[cat_cols].fillna(self.cat_modes_[cat_cols])
+
+        return X
+
+
+import numpy as np
+import pandas as pd
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.preprocessing import LabelEncoder
+
+class TransactionFeatureEngineer(BaseEstimator, TransformerMixin):
+
+    def __init__(self):
+        self.high_value_threshold_ = None
+        self.addr1_frequency_      = None
+        self.card1_frequency_      = None
+        self.device_frequency_     = None
+        self.card1_avg_amt_        = None
+        self.card1_total_spend_    = None
+        self.card1_max_amt_        = None
+        self.card1_day_velocity_   = None
+        self.label_encoders_       = {}
+
+    def fit(self, X, y=None):
+        # Learn threshold from training data only
+        self.high_value_threshold_ = X['TransactionAmt'].quantile(0.75)
+
+        # Learn frequency maps from training data only
+        self.addr1_frequency_ = X['addr1'].value_counts()
+        self.card1_frequency_ = X['card1'].value_counts()
+
+        if 'DeviceType' in X.columns:
+            self.device_frequency_ = X['DeviceType'].value_counts()
+
+        # Learn group aggregates from training data only
+        self.card1_avg_amt_      = X.groupby('card1')['TransactionAmt'].mean()
+        self.card1_total_spend_  = X.groupby('card1')['TransactionAmt'].sum()
+        self.card1_max_amt_      = X.groupby('card1')['TransactionAmt'].max()
+
+        # Need TransactionHour for velocity — compute temporarily
+        X_temp = X.copy()
+        if 'TransactionDT' in X_temp.columns:
+            X_temp['TransactionHour'] = (X_temp['TransactionDT'] / 3600).astype(int) % 24
+        self.card1_day_velocity_ = X_temp.groupby(['card1', 'TransactionHour'])['TransactionAmt'].count()
+
+        # Learn label encoders from training data only
+        cat_cols = X.select_dtypes(include=['object']).columns
+        for col in cat_cols:
+            le = LabelEncoder()
+            le.fit(list(X[col].astype(str).unique()) + ['unknown'])
+            self.label_encoders_[col] = le
+
+        return self
+
+    def transform(self, X, y=None):
+        X = X.copy()
+
+        # 1. Transaction Amount Features
+        X['TransactionAmt_Log']    = np.log1p(X['TransactionAmt'])
+        X['HighValue_Flag']        = (X['TransactionAmt'] > self.high_value_threshold_).astype(int)
+        X['IsRoundAmount']         = (X['TransactionAmt'] % 1 == 0).astype(int)
+
+        # 2. Time Features
+        if 'TransactionDT' in X.columns:
+            X['TransactionHour']    = (X['TransactionDT'] / 3600).astype(int) % 24
+            X['TransactionDay']     = (X['TransactionDT'] / 86400).astype(int) % 7
+            X['IsNightTransaction'] = (
+                (X['TransactionHour'] >= 0) & (X['TransactionHour'] <= 6)
+            ).astype(int)
+
+        # 3. Address Features
+        X['Address_Match']   = (X['addr1'] == X['addr2']).astype(int)
+        X['Addr1_Frequency'] = X['addr1'].map(self.addr1_frequency_).fillna(0)
+
+        # 4. Velocity Features
+        X['Card1_Frequency']       = X['card1'].map(self.card1_frequency_).fillna(0)
+        X['Card1_AvgAmt']          = X['card1'].map(self.card1_avg_amt_).fillna(0)
+        X['Amt_Diff_From_CardAvg'] = X['TransactionAmt'] - X['Card1_AvgAmt']
+        X['Card_Total_Spend']      = X['card1'].map(self.card1_total_spend_).fillna(0)
+        X['Card_Max_Amt']          = X['card1'].map(self.card1_max_amt_).fillna(0)
+
+        velocity_map = self.card1_day_velocity_
+        X['Card_Day_Velocity'] = (
+            X.set_index(['card1', 'TransactionHour']).index.map(velocity_map).fillna(0).values
+        )
+
+        # 5. Device Features
+        if 'DeviceType' in X.columns and self.device_frequency_ is not None:
+            X['DeviceType_Frequency'] = X['DeviceType'].map(self.device_frequency_).fillna(0)
+
+        # 6. Label Encoding
+        #for col, le in self.label_encoders_.items():
+         #   if col in X.columns:
+          #      X[col] = le.transform(X[col].astype(str))
+        # 6. Label Encoding
+        for col, le in self.label_encoders_.items():
+            if col in X.columns:
+                # Replace unseen labels with 'unknown' before encoding
+                known_labels = set(le.classes_)
+                X[col] = X[col].astype(str).apply(
+                    lambda x: x if x in known_labels else 'unknown'
+                )
+                X[col] = le.transform(X[col])
+
+        return X
+
+class DropHighCorrelation(BaseEstimator, TransformerMixin):
+    
+    def __init__(self, threshold=0.90):
+        self.threshold = threshold
+        self.cols_to_drop_ = []
+
+    def fit(self, X, y=None):
+        if not isinstance(X, pd.DataFrame):
+            X = pd.DataFrame(X)
+        corr_matrix = X.corr().abs()
+        upper       = corr_matrix.where(
+            np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)
+        )
+        self.cols_to_drop_ = [
+            col for col in upper.columns if any(upper[col] > self.threshold)
+        ]
+        return self
+
+    def transform(self, X, y=None):
+        if not isinstance(X, pd.DataFrame):
+            X = pd.DataFrame(X)
+        return X.drop(columns=self.cols_to_drop_, errors='ignore')
+        
+# --- Usage Example ---
+# extractor = PairFeatureExtractor(window=60)
+# features_df = extractor.transform(data['AAPL'], data['MSFT'])        
+
+        
+# --- Usage Example ---
+# extractor = PairFeatureExtractor(window=60)
+# features_df = extractor.transform(data['AAPL'], data['MSFT'])
