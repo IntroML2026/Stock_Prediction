@@ -39,6 +39,13 @@ if project_root not in sys.path:
 #from src.feature_utils import extract_features
 from src.Custom_Classes import DropHighMissingCols, TransactionFeatureEngineer, DropHighCorrelation
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(current_dir, '..'))
+file_path = os.path.join(project_root, 'Portfolio/X_train.csv')
+
+dataset = pd.read_csv(file_path,index_col=0)
+dataset = dataset.loc[:, ~train_df.columns.str.contains('^Unnamed')]
+
 # Access the secrets
 aws_id = st.secrets["aws_credentials"]["AWS_ACCESS_KEY_ID"]
 aws_secret = st.secrets["aws_credentials"]["AWS_SECRET_ACCESS_KEY"]
@@ -178,11 +185,13 @@ with st.form("pred_form"):
     
     submitted = st.form_submit_button("Run Prediction")
 
+original = dataset.iloc[0:1].to_dict()
+original.update(user_inputs)
 if submitted:
 
-    res, status = call_model_api([user_inputs])
+    res, status = call_model_api(original)
     if status == 200:
         st.metric("Prediction Result", res)
-        display_explanation([user_inputs],session, aws_bucket)
+        display_explanation(original,session, aws_bucket)
     else:
         st.error(res)
