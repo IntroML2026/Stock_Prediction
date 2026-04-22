@@ -13,7 +13,8 @@ import boto3
 import sagemaker
 from sagemaker.predictor import Predictor
 from sagemaker.serializers import CSVSerializer
-from sagemaker.deserializers import JSONDeserializer
+from sagemaker.serializers import JSONSerializer 
+from sagemaker.deserializers import JSONDeserializer 
 from sagemaker.serializers import NumpySerializer
 from sagemaker.deserializers import NumpyDeserializer
 
@@ -114,7 +115,7 @@ def call_model_api(input_df):
     predictor = Predictor(
         endpoint_name=MODEL_INFO["endpoint"],
         sagemaker_session=sm_session,
-        serializer=NumpySerializer(),
+        serializer=JSONSerializer(), 
         deserializer=NumpyDeserializer() 
     )
 
@@ -183,13 +184,12 @@ if submitted:
     # Prepare data
     # base_df = df_features
     # input_df = pd.concat([base_df, pd.DataFrame([data_row], columns=base_df.columns)])
-    #input_df = pd.DataFrame([data_row], columns=MODEL_INFO["keys"])
-    input_df = pd.DataFrame({'TransactionAmt':[10]*100})
+    input_df = pd.DataFrame([data_row], columns=MODEL_INFO["keys"])
     ### Here i need to add a way to make all of the other columns missing besides my keys (imputer should do the rest)
     
-    res, status = call_model_api(input_df)
+    res, status = call_model_api(user_inputs)
     if status == 200:
         st.metric("Prediction Result", res)
-        display_explanation(input_df,session, aws_bucket)
+        display_explanation(user_inputs,session, aws_bucket)
     else:
         st.error(res)
