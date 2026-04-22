@@ -184,7 +184,7 @@ if submitted:
     # base_df = df_features
     # input_df = pd.concat([base_df, pd.DataFrame([data_row], columns=base_df.columns)])
     #input_df = pd.DataFrame([data_row], columns=MODEL_INFO["keys"])
-    input_df = pd.DataFrame({'TransactionAmt':[0]})
+    input_df = pd.DataFrame({'TransactionAmt':[10]*100})
     ### Here i need to add a way to make all of the other columns missing besides my keys (imputer should do the rest)
     
     res, status = call_model_api(input_df)
