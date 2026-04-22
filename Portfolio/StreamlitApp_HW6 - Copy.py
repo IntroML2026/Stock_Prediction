@@ -17,8 +17,13 @@ from sagemaker.deserializers import JSONDeserializer
 from sagemaker.serializers import NumpySerializer
 from sagemaker.deserializers import NumpyDeserializer
 
+
 from sklearn.pipeline import Pipeline
 import shap
+
+from joblib import dump
+from joblib import load
+
 
 
 # Setup & Path Configuration
@@ -30,7 +35,8 @@ project_root = os.path.abspath(os.path.join(current_dir, '..'))
 if project_root not in sys.path:
     sys.path.append(project_root)
 
-from src.feature_utils import extract_features
+#from src.feature_utils import extract_features
+from src.Custom_Classes import DropHighMissingCols, TransactionFeatureEngineer, DropHighCorrelation
 
 # Access the secrets
 aws_id = st.secrets["aws_credentials"]["AWS_ACCESS_KEY_ID"]
@@ -53,15 +59,24 @@ session = get_session(aws_id, aws_secret, aws_token)
 sm_session = sagemaker.Session(boto_session=session)
 
 # Data & Model Configuration
-df_features = extract_features()
+#df_features = extract_features()
+
+#MODEL_INFO = {
+#        "endpoint": aws_endpoint,
+#        "explainer": 'explainer_sentiment.shap',
+#        "pipeline": 'finalized_sentiment_model.tar.gz',
+#        "keys": ['TSLA','JPM','ADBE','PredictedSentiment'],
+#        "inputs": [{"name": k, "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step": 0.01} for k in ['TSLA','JPM','ADBE','PredictedSentiment']]
+#}
 
 MODEL_INFO = {
-        "endpoint": aws_endpoint,
-        "explainer": 'explainer.shap',
-        "pipeline": 'finalized_model.tar.gz',
-        "keys": ["GOOGL", "IBM", "DEXJPUS", "DEXUSUK", "SP500", "DJIA", "VIXCLS"],
-        "inputs": [{"name": k, "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step": 0.01} for k in ["GOOGL", "IBM", "DEXJPUS", "DEXUSUK", "SP500", "DJIA", "VIXCLS"]]
+    "endpoint"  : aws_endpoint,
+    "explainer" : "explainer_fraud.shap",
+    "pipeline"  : "fine_tuned_pipeline.tar.gz",
+    "keys"      : ['TransactionAmt'],
+    "inputs"    : [{"name": k, "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step": 0.01} for k in ['TransactionAmt']]
 }
+
 
 def load_pipeline(_session, bucket, key):
     s3_client = _session.client('s3')
@@ -74,7 +89,9 @@ def load_pipeline(_session, bucket, key):
         # Extract the .joblib file from the .tar.gz
     with tarfile.open(filename, "r:gz") as tar:
         tar.extractall(path=".")
-        joblib_file = [f for f in tar.getnames() if f.endswith('.joblib')][0]
+        #joblib_file = [f for f in tar.getnames() if f.endswith('.joblib')][0]
+        joblib_file = [f for f in tar.getnames() if f.endswith('.pkl')][0]
+    
 
     # Load the full pipeline
     return joblib.load(f"{joblib_file}")
@@ -88,7 +105,8 @@ def load_shap_explainer(_session, bucket, key, local_path):
         s3_client.download_file(Filename=local_path, Bucket=bucket, Key=key)
         
     with open(local_path, "rb") as f:
-        return shap.Explainer.load(f)
+        return load(f)
+        #return shap.Explainer.load(f)
 
 # Prediction Logic
 def call_model_api(input_df):
@@ -101,9 +119,17 @@ def call_model_api(input_df):
     )
 
     try:
+        #if you do option 1 you want to uncomment the ones you want to use and comment the ones you dont use
+        # For regression
+        # raw_pred = predictor.predict(input_df)
+        # pred_val = pd.DataFrame(raw_pred).values[-1][0]
+        # return round(float(pred_val), 4), 200
+        # For classification
         raw_pred = predictor.predict(input_df)
         pred_val = pd.DataFrame(raw_pred).values[-1][0]
-        return round(float(pred_val), 4), 200
+        #mapping = {0: "SELL", 1: "HOLD", 2: "BUY"}
+        mapping = {0: "Legitimate", 1: "Fraud"}
+        return mapping.get(pred_val), 200
     except Exception as e:
         return f"Error: {str(e)}", 500
 
@@ -115,17 +141,23 @@ def display_explanation(input_df, session, aws_bucket):
     best_pipeline = load_pipeline(session, aws_bucket, 'sklearn-pipeline-deployment')
     preprocessing_pipeline = Pipeline(steps=best_pipeline.steps[:-2])
     input_df_transformed = preprocessing_pipeline.transform(input_df)
-    feature_names = best_pipeline[1:4].get_feature_names_out()
+    feature_names = best_pipeline[:-2].get_feature_names_out()
     input_df_transformed = pd.DataFrame(input_df_transformed, columns=feature_names)
     shap_values = explainer(input_df_transformed)
     
     st.subheader("🔍 Decision Transparency (SHAP)")
     fig, ax = plt.subplots(figsize=(10, 4))
-    shap.plots.waterfall(shap_values[0], max_display=10)
+    #shap.plots.waterfall(shap_values[0], max_display=10)
+    #shap.plots.waterfall(shap_values[0, :, 0]) #classification
+    shap.plots.waterfall(shap_values[0, :, 1])  # class 1 = fraud
     st.pyplot(fig)
     # top feature 
+    #regression
+    # top_feature = pd.Series(shap_values[0].values, index=shap_values[0].feature_names).abs().idxmax()
+    #classification
     top_feature = pd.Series(shap_values[0, :, 0].values, index=shap_values[0, :, 0].feature_names).abs().idxmax()
     st.info(f"**Business Insight:** The most influential factor in this decision was **{top_feature}**.")
+
 
 # Streamlit UI
 st.set_page_config(page_title="ML Deployment", layout="wide")
@@ -149,8 +181,10 @@ if submitted:
 
     data_row = [user_inputs[k] for k in MODEL_INFO["keys"]]
     # Prepare data
-    base_df = df_features
-    input_df = pd.concat([base_df, pd.DataFrame([data_row], columns=base_df.columns)])
+    # base_df = df_features
+    # input_df = pd.concat([base_df, pd.DataFrame([data_row], columns=base_df.columns)])
+    input_df = pd.DataFrame([data_row], columns=MODEL_INFO["keys"])
+    ### Here i need to add a way to make all of the other columns missing besides my keys (imputer should do the rest)
     
     res, status = call_model_api(input_df)
     if status == 200:
@@ -158,6 +192,3 @@ if submitted:
         display_explanation(input_df,session, aws_bucket)
     else:
         st.error(res)
-
-
-
