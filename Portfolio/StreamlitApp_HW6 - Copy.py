@@ -44,7 +44,7 @@ project_root = os.path.abspath(os.path.join(current_dir, '..'))
 file_path = os.path.join(project_root, 'Portfolio/X_train.csv')
 
 dataset = pd.read_csv(file_path,index_col=0)
-dataset = dataset.loc[:, ~train_df.columns.str.contains('^Unnamed')]
+dataset = dataset.loc[:, ~dataset.columns.str.contains('^Unnamed')]
 
 # Access the secrets
 aws_id = st.secrets["aws_credentials"]["AWS_ACCESS_KEY_ID"]
