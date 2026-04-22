@@ -39,11 +39,9 @@ if project_root not in sys.path:
 #from src.feature_utils import extract_features
 from src.Custom_Classes import DropHighMissingCols, TransactionFeatureEngineer, DropHighCorrelation
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(current_dir, '..'))
 file_path = os.path.join(project_root, 'Portfolio/X_train.csv')
 
-dataset = pd.read_csv(file_path,index_col=0)
+dataset = pd.read_csv(file_path)
 dataset = dataset.loc[:, ~dataset.columns.str.contains('^Unnamed')]
 
 # Access the secrets
