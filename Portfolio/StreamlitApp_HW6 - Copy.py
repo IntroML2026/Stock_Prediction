@@ -131,11 +131,12 @@ def call_model_api(input_df):
         # pred_val = pd.DataFrame(raw_pred).values[-1][0]
         # return round(float(pred_val), 4), 200
         # For classification
-        raw_pred = predictor.predict(input_df)
-        pred_val = pd.DataFrame(raw_pred).values[-1][0]
+        #raw_pred = predictor.predict(input_df)
+        #pred_val = pd.DataFrame(raw_pred).values[-1][0]
         #mapping = {0: "SELL", 1: "HOLD", 2: "BUY"}
         mapping = {0: "Legitimate", 1: "Fraud"}
-        return mapping.get(pred_val), 200
+        #return mapping.get(pred_val), 200
+        return mapping.get(0), 200
     except Exception as e:
         return f"Error: {str(e)}", 500
 
