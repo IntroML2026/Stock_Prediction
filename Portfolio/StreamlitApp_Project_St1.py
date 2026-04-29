@@ -136,8 +136,10 @@ def display_explanation(input_df, session, aws_bucket):
     preprocessing_pipeline = Pipeline(preprocessing_steps)
     input_df=pd.DataFrame(input_df)
     input_df_transformed = preprocessing_pipeline.transform(input_df)
+    X_temp = preprocessing_pipeline.named_steps['cleaner'].transform(dataset)
+    X_temp = preprocessing_pipeline.named_steps['feature_engineer'].transform(X_temp)
     selector = preprocessing_pipeline.named_steps['feature_selection']
-    feature_names = dataset.columns[selector.get_support()]
+    feature_names = X_temp.columns[selector.get_support()]
     input_df_transformed = pd.DataFrame(input_df_transformed, columns=feature_names)
     model = best_pipeline.named_steps['model']
     explainer = shap.Explainer(model, input_df_transformed)
